@@ -103,7 +103,6 @@ To achieve this on modern Anki, the script copies the deck name to your **system
 
 [Back to Top](#table-of-contents)
 
-
 ## Kardenwort Ecosystem
 
 This project is part of the **[Kardenwort](https://github.com/kardenwort)** environment, designed to create a focused and efficient learning ecosystem.
