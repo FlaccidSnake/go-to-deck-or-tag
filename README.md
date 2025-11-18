@@ -2,7 +2,7 @@
 
 A lightweight Anki add-on that adds a "Go to Deck" option to the browser's context menu, allowing you to instantly filter the view to the specific deck of a selected card.
 
-[![Version](https://img.shields.io/badge/version-v1.1.0-blue)](https://github.com/yourusername/anki-go-to-deck) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Anki](https://img.shields.io/badge/Anki-2.1%2B-lightgrey)](https://apps.ankiweb.net/)
+[![Version](https://img.shields.io/badge/version-v1.2.0-blue)](https://github.com/yourusername/anki-go-to-deck) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Anki](https://img.shields.io/badge/Anki-2.1%2B-lightgrey)](https://apps.ankiweb.net/)
 
 This utility solves a common navigation friction in the Anki Browser. Instead of manually searching for a deck name or scrolling through the sidebar, you can right-click any card and instantly isolate its home deck.
 
@@ -13,6 +13,8 @@ This utility solves a common navigation friction in the Anki Browser. Instead of
   - [Features](#features)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
+  - [Configuration](#configuration)
+    - [`enable_sidebar_clipboard_hack`](#enable_sidebar_clipboard_hack)
   - [Usage](#usage)
   - [Compatibility Notes](#compatibility-notes)
   - [License](#license)
@@ -22,8 +24,8 @@ This utility solves a common navigation friction in the Anki Browser. Instead of
 -   **Context Menu Integration**: Adds a convenient "Go to Deck" option when right-clicking a card in the Browser.
 -   **Instant Filtering**: Automatically applies a `deck:"Name"` filter to the search bar.
 -   **Hybrid Behavior**:
-    -   **Modern Anki (2.1.50+ / Qt6)**: Shows a non-intrusive tooltip confirming which deck has been filtered.
     -   **Legacy Anki (Qt5)**: Automatically expands the sidebar tree and highlights the specific deck folder.
+    -   **Modern Anki (2.1.50+ / Qt6)**: Applies the search filter by default. Optionally, it can visually expand the sidebar using an advanced input simulation method (see [Configuration](#configuration)).
 
 [Back to Top](#table-of-contents)
 
@@ -43,18 +45,43 @@ This utility solves a common navigation friction in the Anki Browser. Instead of
 Inside `addons21`, create a new folder named `AnkiGoToDeck` (or any name you prefer, but avoid spaces).
 
 **Step 3: Copy Files**
-Copy the `__init__.py` and `anki_go_to_deck.py` files from this repository into your newly created `AnkiGoToDeck` folder.
+Copy the following three files from this repository into your newly created `AnkiGoToDeck` folder:
+1.  `__init__.py`
+2.  `anki_go_to_deck.py`
+3.  `config.json`
 
 **Final Structure:**
 ```
 addons21/
 └── AnkiGoToDeck/
     ├── __init__.py
-    └── anki_go_to_deck.py
+    ├── anki_go_to_deck.py
+    └── config.json
 ```
 
 **Step 4: Restart Anki**
 Restart the application for the add-on to load.
+
+[Back to Top](#table-of-contents)
+
+## Configuration
+
+This add-on includes a `config.json` file to control advanced behavior for modern versions of Anki.
+
+```json
+{
+    "enable_sidebar_clipboard_hack": false
+}
+```
+
+### `enable_sidebar_clipboard_hack`
+-   **Default:** `false`
+-   **Description:** In modern Anki (2.1.50+), the sidebar is a web component that cannot be controlled via standard API calls. 
+    -   **If `false`**: The add-on will simply filter the card list (`deck:"Name"`). The sidebar tree will not change visually.
+    -   **If `true`**: The add-on will use a workaround to force the sidebar to expand to the correct deck.
+    
+**⚠️ Important Note for the "True" setting:**
+To achieve this on modern Anki, the script copies the deck name to your **system clipboard** and simulates a keyboard sequence (`Ctrl+Shift+F` -> `Ctrl+A` -> `Delete` -> `Ctrl+V` -> `Enter`). Enable this only if you are comfortable with the add-on briefly using your clipboard when you click "Go to Deck".
 
 [Back to Top](#table-of-contents)
 
@@ -70,8 +97,8 @@ Restart the application for the add-on to load.
 ## Compatibility Notes
 
 **Sidebar Highlighting**
--   **Legacy Versions**: On older versions of Anki where the sidebar is a standard Qt Widget, this add-on will visually expand the tree and select the deck item.
--   **Modern Versions (2.1.50+)**: Due to the architectural shift to a web-based sidebar (Svelte), programmatic highlighting of the tree is restricted. In these versions, the add-on relies on **search filtering** (`deck:"..."`) and displays a **tooltip** to confirm the action.
+-   **Legacy Versions**: On older versions of Anki where the sidebar is a standard Qt Widget, this add-on will visually expand the tree and select the deck item automatically (ignoring `config.json`).
+-   **Modern Versions (2.1.50+)**: Visual sidebar highlighting is disabled by default due to technical restrictions. It can be enabled by setting `"enable_sidebar_clipboard_hack": true` in the configuration file.
 
 [Back to Top](#table-of-contents)
 
