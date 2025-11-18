@@ -9,6 +9,12 @@ from aqt.qt import (
     QTimer
 )
 
+def get_config():
+    # Get config for the current add-on package
+    addon_package = __name__.split('.')[0]
+    config = mw.addonManager.getConfig(addon_package)
+    return config if config else {}
+
 def expand_and_select_legacy(browser, deck_name):
     try:
         tree = browser.form.searchTree
@@ -40,9 +46,11 @@ def simulate_key(widget, key, modifiers=Qt.KeyboardModifier.NoModifier):
     QApplication.postEvent(widget, e_release)
 
 def filter_sidebar_modern_keyboard(browser, deck_name):
+    # 1. Copy leaf name to clipboard
     leaf_name = deck_name.split("::")[-1]
     QApplication.clipboard().setText(leaf_name)
 
+    # 2. Focus Sidebar (Ctrl+Shift+F)
     simulate_key(
         browser, 
         Qt.Key.Key_F, 
@@ -53,22 +61,27 @@ def filter_sidebar_modern_keyboard(browser, deck_name):
         focus_widget = QApplication.focusWidget()
         
         if focus_widget:
+            # Select All (Ctrl+A)
             simulate_key(
                 focus_widget, 
                 Qt.Key.Key_A, 
                 Qt.KeyboardModifier.ControlModifier
             )
             
+            # Delete (Backspace)
             simulate_key(focus_widget, Qt.Key.Key_Backspace)
             
+            # Paste (Ctrl+V)
             simulate_key(
                 focus_widget, 
                 Qt.Key.Key_V, 
                 Qt.KeyboardModifier.ControlModifier
             )
             
+            # Enter
             QTimer.singleShot(50, lambda: simulate_key(focus_widget, Qt.Key.Key_Return))
 
+    # Wait for focus to change
     QTimer.singleShot(150, step_clear_paste_enter)
 
 def filter_by_card_deck(browser):
@@ -79,12 +92,17 @@ def filter_by_card_deck(browser):
     card = mw.col.get_card(cids[0])
     deck_name = mw.col.decks.name(card.did)
     
+    # Always apply standard safety filter
     browser.setFilter(f'deck:"{deck_name}"')
     
+    # Try Legacy method
     is_legacy = expand_and_select_legacy(browser, deck_name)
     
     if not is_legacy:
-        filter_sidebar_modern_keyboard(browser, deck_name)
+        # Check config before running the clipboard hack
+        config = get_config()
+        if config.get("enable_sidebar_clipboard_hack", False):
+            filter_sidebar_modern_keyboard(browser, deck_name)
 
 def on_context_menu(browser, menu):
     action = menu.addAction("Go to Deck")
