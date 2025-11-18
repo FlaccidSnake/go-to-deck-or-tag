@@ -2,9 +2,9 @@
 
 A lightweight Anki add-on that adds a "Go to Deck" option to the browser's context menu, allowing you to instantly filter the view to the specific deck of a selected card.
 
-[![Version](https://img.shields.io/badge/version-v1.0.0-blue)](https://github.com/yourusername/anki-go-to-deck) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Anki](https://img.shields.io/badge/Anki-2.1.50%2B-lightgrey)](https://apps.ankiweb.net/)
+[![Version](https://img.shields.io/badge/version-v1.1.0-blue)](https://github.com/yourusername/anki-go-to-deck) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Anki](https://img.shields.io/badge/Anki-2.1%2B-lightgrey)](https://apps.ankiweb.net/)
 
-This utility solves a common navigation friction in the Anki Browser. Instead of manually searching for a deck name or scrolling through the sidebar, you can right-click any card and instantly isolate its home deck. It provides visual feedback via a tooltip to confirm the action.
+This utility solves a common navigation friction in the Anki Browser. Instead of manually searching for a deck name or scrolling through the sidebar, you can right-click any card and instantly isolate its home deck.
 
 ## Table of Contents
 
@@ -14,22 +14,23 @@ This utility solves a common navigation friction in the Anki Browser. Instead of
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
   - [Usage](#usage)
-  - [Limitations](#limitations)
+  - [Compatibility Notes](#compatibility-notes)
   - [License](#license)
 
 ## Features
 
 -   **Context Menu Integration**: Adds a convenient "Go to Deck" option when right-clicking a card in the Browser.
 -   **Instant Filtering**: Automatically applies a `deck:"Name"` filter to the search bar.
--   **Visual Feedback**: Displays a non-intrusive tooltip confirming which deck has been opened.
--   **Modern API Support**: Written for Anki 2.1.50+ and fully compatible with the Qt6 / PyQt6 architecture.
+-   **Hybrid Behavior**:
+    -   **Modern Anki (2.1.50+ / Qt6)**: Shows a non-intrusive tooltip confirming which deck has been filtered.
+    -   **Legacy Anki (Qt5)**: Automatically expands the sidebar tree and highlights the specific deck folder.
 
 [Back to Top](#table-of-contents)
 
 ## Prerequisites
 
-1.  **Anki Desktop**: Version 2.1.50 or newer (tested on 24.06+).
-2.  **OS**: Windows, macOS, or Linux.
+-   **Anki Desktop**: Works on both legacy (2.1.x) and modern (23.x/24.x) versions.
+-   **OS**: Windows, macOS, or Linux.
 
 ## Installation
 
@@ -62,16 +63,15 @@ Restart the application for the add-on to load.
 1.  Open the **Browser** in Anki.
 2.  **Right-click** on any card in the list.
 3.  Select **Go to Deck** from the context menu.
-4.  The browser will immediately filter the list to show only cards from that deck, and a small tooltip will appear confirming the deck name.
+4.  The browser will immediately filter the list to show only cards from that deck.
 
 [Back to Top](#table-of-contents)
 
-## Limitations
+## Compatibility Notes
 
-**Sidebar Tree Highlighting**
-Due to architectural changes in recent versions of Anki (Qt6 / Svelte-based sidebar), this add-on **does not visually highlight or scroll to** the deck in the left-hand sidebar tree. It achieves the result by applying a search filter (`deck:"..."`) to the main view.
-
-Control over the sidebar tree Webview is currently restricted in the Anki API, making programmatic scrolling/expansion unstable or impossible without deep hacks.
+**Sidebar Highlighting**
+-   **Legacy Versions**: On older versions of Anki where the sidebar is a standard Qt Widget, this add-on will visually expand the tree and select the deck item.
+-   **Modern Versions (2.1.50+)**: Due to the architectural shift to a web-based sidebar (Svelte), programmatic highlighting of the tree is restricted. In these versions, the add-on relies on **search filtering** (`deck:"..."`) and displays a **tooltip** to confirm the action.
 
 [Back to Top](#table-of-contents)
 

@@ -42,7 +42,7 @@ def filter_by_card_deck(browser):
     success_legacy = expand_and_select_legacy(browser, deck_name)
     
     if not success_legacy:
-        tooltip(f"📂 Открыта колода:\n{deck_name}")
+        tooltip(f"Deck:\n{deck_name}")
 
 def on_context_menu(browser, menu):
     action = menu.addAction("Go to Deck")
