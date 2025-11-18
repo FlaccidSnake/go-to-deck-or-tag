@@ -1,0 +1,1 @@
+from . import anki_go_to_deck
