@@ -9,7 +9,7 @@ def filter_by_card_deck(browser):
     card = mw.col.get_card(cids[0])
     deck_name = mw.col.decks.name(card.did)
     
-    browser.search(f'deck:"{deck_name}"')
+    browser.setFilter(f'deck:"{deck_name}"')
 
 def on_context_menu(browser, menu):
     action = menu.addAction("Go to Deck")
