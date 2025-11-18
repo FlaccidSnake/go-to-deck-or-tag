@@ -17,6 +17,7 @@ This utility solves a common navigation friction in the Anki Browser. Instead of
     - [`enable_sidebar_clipboard_hack`](#enable_sidebar_clipboard_hack)
   - [Usage](#usage)
   - [Compatibility Notes](#compatibility-notes)
+  - [Kardenwort Ecosystem](#kardenwort-ecosystem)
   - [License](#license)
 
 ## Features
@@ -99,6 +100,13 @@ To achieve this on modern Anki, the script copies the deck name to your **system
 **Sidebar Highlighting**
 -   **Legacy Versions**: On older versions of Anki where the sidebar is a standard Qt Widget, this add-on will visually expand the tree and select the deck item automatically (ignoring `config.json`).
 -   **Modern Versions (2.1.50+)**: Visual sidebar highlighting is disabled by default due to technical restrictions. It can be enabled by setting `"enable_sidebar_clipboard_hack": true` in the configuration file.
+
+[Back to Top](#table-of-contents)
+
+
+## Kardenwort Ecosystem
+
+This project is part of the **[Kardenwort](https://github.com/kardenwort)** environment, designed to create a focused and efficient learning ecosystem.
 
 [Back to Top](#table-of-contents)
 
