@@ -1,10 +1,10 @@
 import json
 from aqt import mw
 from aqt.gui_hooks import browser_will_show_context_menu
-from aqt.qt import QTreeWidgetItemIterator
+from aqt.qt import QTreeWidgetItemIterator, QTimer, QWebEnginePage
 
 def expand_and_select_legacy(browser, deck_name):
-    """Legacy support for Anki < 2.1.50 (Qt Sidebar)"""
+    """Legacy method for Anki < 2.1.50 (Qt-based sidebar)"""
     try:
         tree = browser.form.searchTree
     except AttributeError:
@@ -25,38 +25,41 @@ def expand_and_select_legacy(browser, deck_name):
         iterator += 1
     return False
 
-def filter_sidebar_modern(browser, deck_name):
-    """Modern support for Anki 2.1.50+ (Svelte/Web Sidebar)"""
+def filter_sidebar_modern_paste(browser, deck_name):
+    """
+    Modern method: Copies deck name to clipboard and triggers Paste 
+    into the sidebar search box.
+    """
     try:
         sidebar_web = browser.sidebar.web
     except AttributeError:
         return
 
-    # Get the last part of the deck name (e.g. "SubDeck" from "Parent::SubDeck")
+    # 1. Get the leaf name (e.g. "Child" from "Parent::Child")
     leaf_name = deck_name.split("::")[-1]
-    safe_name = json.dumps(leaf_name)
-
-    # JS: Find the first input, focus it (like Ctrl+Shift+F), and type
-    js_code = f"""
-    (function() {{
-        // 1. Find the input. In the sidebar, the filter is usually the very first input.
-        var input = document.querySelector("input[type='text']") || document.querySelector("input");
-        
-        if (input) {{
-            // 2. Focus it (Simulate Ctrl+Shift+F)
-            input.focus();
-            
-            // 3. Set the value
-            input.value = {safe_name};
-            
-            // 4. Trigger events so Svelte 'reacts' to the change
-            input.dispatchEvent(new Event('input', {{ bubbles: true }}));
-            input.dispatchEvent(new Event('change', {{ bubbles: true }}));
-        }}
-    }})();
-    """
     
+    # 2. Copy to system Clipboard
+    mw.app.clipboard().setText(leaf_name)
+
+    # 3. JS: Focus the input and Select All (to overwrite existing text)
+    # This mimics hitting Ctrl+Shift+F
+    js_code = """
+    (function() {
+        var input = document.querySelector("input[type='text']") || document.querySelector("input");
+        if (input) {
+            input.focus();
+            input.select();
+        }
+    })();
+    """
     sidebar_web.eval(js_code)
+
+    # 4. Trigger 'Paste' action after a tiny delay to allow focus to settle
+    def trigger_paste():
+        # WebAction.Paste is usually enum value 6
+        sidebar_web.triggerPageAction(QWebEnginePage.WebAction.Paste)
+    
+    QTimer.singleShot(50, trigger_paste)
 
 def filter_by_card_deck(browser):
     cids = browser.selectedCards()
@@ -66,15 +69,15 @@ def filter_by_card_deck(browser):
     card = mw.col.get_card(cids[0])
     deck_name = mw.col.decks.name(card.did)
     
-    # 1. Filter main browser list
+    # 1. Filter main list (standard method)
     browser.setFilter(f'deck:"{deck_name}"')
     
-    # 2. Try Legacy Qt Method
+    # 2. Try Legacy sidebar (for old Anki)
     is_legacy = expand_and_select_legacy(browser, deck_name)
     
-    # 3. If not legacy, try Modern Sidebar Search
+    # 3. If not legacy, use the Clipboard+Paste Hack
     if not is_legacy:
-        filter_sidebar_modern(browser, deck_name)
+        filter_sidebar_modern_paste(browser, deck_name)
 
 def on_context_menu(browser, menu):
     action = menu.addAction("Go to Deck")
