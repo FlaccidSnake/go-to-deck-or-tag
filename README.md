@@ -25,6 +25,8 @@ This utility solves a common navigation friction in the Anki Browser. Instead of
   - [Kardenwort Ecosystem](#kardenwort-ecosystem)
   - [License](#license)
 
+---
+
 ## Features
 
 -   **Context Menu Integration**: Adds a convenient "Go to Deck" option when right-clicking a card in the Browser.
