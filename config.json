@@ -1,3 +1,4 @@
 {
-    "enable_sidebar_clipboard_hack": true
+    "enable_sidebar_clipboard_hack": false,
+    "abbreviate_tags": false
 }
