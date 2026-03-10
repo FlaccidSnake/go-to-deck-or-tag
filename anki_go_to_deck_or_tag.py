@@ -4,7 +4,6 @@ from . import config_dialog
 from aqt.qt import *
 
 def get_config():
-    # Get config for the current add-on package
     addon_package = __name__.split('.')[0]
     config = mw.addonManager.getConfig(addon_package)
     return config if config else {}
@@ -40,11 +39,9 @@ def simulate_key(widget, key, modifiers=Qt.KeyboardModifier.NoModifier):
     QApplication.postEvent(widget, e_release)
 
 def filter_sidebar_modern_keyboard(browser, item_name):
-    # 1. Copy leaf name to clipboard
     leaf_name = item_name.split("::")[-1]
     QApplication.clipboard().setText(leaf_name)
     
-    # 2. Focus Sidebar (Ctrl+Shift+F)
     simulate_key(
         browser, 
         Qt.Key.Key_F, 
@@ -55,48 +52,12 @@ def filter_sidebar_modern_keyboard(browser, item_name):
         focus_widget = QApplication.focusWidget()
         
         if focus_widget:
-            # Select All (Ctrl+A)
-            simulate_key(
-                focus_widget, 
-                Qt.Key.Key_A, 
-                Qt.KeyboardModifier.ControlModifier
-            )
-            
-            # Delete (Backspace)
+            simulate_key(focus_widget, Qt.Key.Key_A, Qt.KeyboardModifier.ControlModifier)
             simulate_key(focus_widget, Qt.Key.Key_Backspace)
-            
-            # Paste (Ctrl+V)
-            simulate_key(
-                focus_widget, 
-                Qt.Key.Key_V, 
-                Qt.KeyboardModifier.ControlModifier
-            )
-            
-            # Enter
+            simulate_key(focus_widget, Qt.Key.Key_V, Qt.KeyboardModifier.ControlModifier)
             QTimer.singleShot(50, lambda: simulate_key(focus_widget, Qt.Key.Key_Return))
     
-    # Wait for focus to change
     QTimer.singleShot(150, step_clear_paste_enter)
-
-def filter_by_card_deck(browser):
-    cids = browser.selectedCards()
-    if not cids:
-        return
-    
-    card = mw.col.get_card(cids[0])
-    deck_name = mw.col.decks.name(card.did)
-    
-    # Always apply standard safety filter
-    browser.setFilter(f'deck:"{deck_name}"')
-    
-    # Try Legacy method
-    is_legacy = expand_and_select_legacy(browser, deck_name)
-    
-    if not is_legacy:
-        # Check config before running the clipboard hack
-        config = get_config()
-        if config.get("enable_sidebar_clipboard_hack", False):
-            filter_sidebar_modern_keyboard(browser, deck_name)
 
 # --- FLOW LAYOUT CLASS ---
 
@@ -181,27 +142,24 @@ class FlowLayout(QLayout):
         
         return y + line_height - rect.y() + bottom
 
-# --- TAG SELECTION DIALOG ---
+# --- DECK SELECTION DIALOG ---
 
-class TagSelectionDialog(QDialog):
-    def __init__(self, tags, parent=None):
+class DeckSelectionDialog(QDialog):
+    def __init__(self, decks, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Select Tags")
-        self.selected_tags = []
+        self.setWindowTitle("Select Decks")
         
-        # Load config
         addon_package = __name__.split('.')[0]
         self.config = mw.addonManager.getConfig(addon_package) or {}
-        self.abbreviate = self.config.get("abbreviate_tags", False)
+        self.abbreviate = self.config.get("abbreviate_decks", False)
         
         layout = QVBoxLayout()
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(10)
         
-        # Top bar with checkboxes
+        # Top bar
         top_bar = QHBoxLayout()
         
-        # Select All checkbox
         self.select_all_cb = QCheckBox("Select All")
         self.select_all_cb.setChecked(True)
         self.select_all_cb.stateChanged.connect(self.toggle_all)
@@ -209,8 +167,7 @@ class TagSelectionDialog(QDialog):
         
         top_bar.addSpacing(20)
         
-        # Abbreviate tags checkbox
-        self.abbreviate_cb = QCheckBox("Abbreviate tags")
+        self.abbreviate_cb = QCheckBox("Abbreviate decks")
         self.abbreviate_cb.setChecked(self.abbreviate)
         self.abbreviate_cb.stateChanged.connect(self.on_abbreviate_changed)
         top_bar.addWidget(self.abbreviate_cb)
@@ -218,7 +175,7 @@ class TagSelectionDialog(QDialog):
         top_bar.addStretch()
         layout.addLayout(top_bar)
         
-        # Scroll area for tags
+        # Scroll area
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
@@ -228,21 +185,123 @@ class TagSelectionDialog(QDialog):
         self.flow_layout.setContentsMargins(0, 0, 0, 0)
         scroll_widget.setLayout(self.flow_layout)
         
-        # Individual tag checkboxes
+        self.deck_checkboxes = []
+        for deck in sorted(decks):
+            cb = QCheckBox(self._get_display_deck(deck))
+            cb.setProperty("full_deck", deck)
+            cb.setChecked(True)
+            cb.stateChanged.connect(self.update_select_all_state)
+            cb.setToolTip(deck)
+            self.deck_checkboxes.append(cb)
+            self.flow_layout.addWidget(cb)
+        
+        scroll.setWidget(scroll_widget)
+        layout.addWidget(scroll)
+        
+        ok_button = QPushButton("OK")
+        ok_button.clicked.connect(self.accept)
+        layout.addWidget(ok_button)
+        
+        self.setLayout(layout)
+        self.resize(400, 300)
+    
+    def toggle_all(self, state):
+        checked = state == Qt.CheckState.Checked.value
+        for cb in self.deck_checkboxes:
+            cb.setChecked(checked)
+    
+    def on_abbreviate_changed(self, state):
+        self.abbreviate = (state == Qt.CheckState.Checked.value)
+        
+        addon_package = __name__.split('.')[0]
+        self.config['abbreviate_decks'] = self.abbreviate
+        mw.addonManager.writeConfig(addon_package, self.config)
+        
+        for cb in self.deck_checkboxes:
+            full_deck = cb.property("full_deck")
+            cb.setText(self._get_display_deck(full_deck))
+    
+    def _get_display_deck(self, deck: str) -> str:
+        if not self.abbreviate:
+            return deck
+        if "::" not in deck:
+            return deck
+        parts = deck.split("::")
+        if len(parts) <= 2:
+            return deck
+        return f"{parts[0]}::(...)::{parts[-1]}"
+    
+    def update_select_all_state(self):
+        all_checked = all(cb.isChecked() for cb in self.deck_checkboxes)
+        none_checked = not any(cb.isChecked() for cb in self.deck_checkboxes)
+        
+        self.select_all_cb.blockSignals(True)
+        if all_checked:
+            self.select_all_cb.setChecked(True)
+        elif none_checked:
+            self.select_all_cb.setChecked(False)
+        else:
+            self.select_all_cb.setCheckState(Qt.CheckState.PartiallyChecked)
+        self.select_all_cb.blockSignals(False)
+    
+    def get_selected_decks(self):
+        return [cb.property("full_deck") for cb in self.deck_checkboxes if cb.isChecked()]
+
+# --- TAG SELECTION DIALOG ---
+
+class TagSelectionDialog(QDialog):
+    def __init__(self, tags, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Select Tags")
+        self.selected_tags = []
+        
+        addon_package = __name__.split('.')[0]
+        self.config = mw.addonManager.getConfig(addon_package) or {}
+        self.abbreviate = self.config.get("abbreviate_tags", False)
+        
+        layout = QVBoxLayout()
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(10)
+        
+        top_bar = QHBoxLayout()
+        
+        self.select_all_cb = QCheckBox("Select All")
+        self.select_all_cb.setChecked(True)
+        self.select_all_cb.stateChanged.connect(self.toggle_all)
+        top_bar.addWidget(self.select_all_cb)
+        
+        top_bar.addSpacing(20)
+        
+        self.abbreviate_cb = QCheckBox("Abbreviate tags")
+        self.abbreviate_cb.setChecked(self.abbreviate)
+        self.abbreviate_cb.stateChanged.connect(self.on_abbreviate_changed)
+        top_bar.addWidget(self.abbreviate_cb)
+        
+        top_bar.addStretch()
+        layout.addLayout(top_bar)
+        
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        
+        scroll_widget = QWidget()
+        self.flow_layout = FlowLayout()
+        self.flow_layout.setContentsMargins(0, 0, 0, 0)
+        scroll_widget.setLayout(self.flow_layout)
+        
         self.tag_checkboxes = []
         for tag in sorted(tags):
             cb = QCheckBox(self._get_display_tag(tag))
-            cb.setProperty("full_tag", tag)  # Store full tag
+            cb.setProperty("full_tag", tag)
             cb.setChecked(True)
             cb.stateChanged.connect(self.update_select_all_state)
-            cb.setToolTip(tag)  # Show full tag on hover
+            cb.setToolTip(tag)
             self.tag_checkboxes.append(cb)
             self.flow_layout.addWidget(cb)
         
         scroll.setWidget(scroll_widget)
         layout.addWidget(scroll)
         
-        # OK button
         ok_button = QPushButton("OK")
         ok_button.clicked.connect(self.accept)
         layout.addWidget(ok_button)
@@ -258,12 +317,10 @@ class TagSelectionDialog(QDialog):
     def on_abbreviate_changed(self, state):
         self.abbreviate = (state == Qt.CheckState.Checked.value)
         
-        # Save to config
         addon_package = __name__.split('.')[0]
         self.config['abbreviate_tags'] = self.abbreviate
         mw.addonManager.writeConfig(addon_package, self.config)
         
-        # Update all checkbox labels
         for cb in self.tag_checkboxes:
             full_tag = cb.property("full_tag")
             cb.setText(self._get_display_tag(full_tag))
@@ -271,7 +328,6 @@ class TagSelectionDialog(QDialog):
     def _get_display_tag(self, tag: str) -> str:
         if not self.abbreviate:
             return tag
-        
         if "::" not in tag:
             return tag
         parts = tag.split("::")
@@ -283,7 +339,6 @@ class TagSelectionDialog(QDialog):
         all_checked = all(cb.isChecked() for cb in self.tag_checkboxes)
         none_checked = not any(cb.isChecked() for cb in self.tag_checkboxes)
         
-        # Block signals to prevent recursion
         self.select_all_cb.blockSignals(True)
         if all_checked:
             self.select_all_cb.setChecked(True)
@@ -295,6 +350,50 @@ class TagSelectionDialog(QDialog):
     
     def get_selected_tags(self):
         return [cb.property("full_tag") for cb in self.tag_checkboxes if cb.isChecked()]
+
+# --- FILTER FUNCTIONS ---
+
+def filter_by_card_deck(browser):
+    cids = browser.selectedCards()
+    if not cids:
+        return
+
+    # Collect decks from ALL selected cards
+    all_decks = set()
+    for cid in cids:
+        card = mw.col.get_card(cid)
+        deck_name = mw.col.decks.name(card.did)
+        all_decks.add(deck_name)
+
+    decks = list(all_decks)
+
+    if len(decks) > 1:
+        dialog = DeckSelectionDialog(decks, browser)
+        if dialog.exec():
+            selected_decks = dialog.get_selected_decks()
+            if not selected_decks:
+                return
+
+            if len(selected_decks) == 1:
+                deck_filter = f'deck:"{selected_decks[0]}"'
+                sidebar_deck = selected_decks[0]
+            else:
+                deck_filter = " OR ".join([f'deck:"{d}"' for d in selected_decks])
+                sidebar_deck = selected_decks[0]
+        else:
+            return
+    else:
+        deck_filter = f'deck:"{decks[0]}"'
+        sidebar_deck = decks[0]
+
+    browser.setFilter(deck_filter)
+
+    is_legacy = expand_and_select_legacy(browser, sidebar_deck)
+
+    if not is_legacy:
+        config = get_config()
+        if config.get("enable_sidebar_clipboard_hack", False):
+            filter_sidebar_modern_keyboard(browser, sidebar_deck)
 
 def filter_by_card_tag(browser):
     cids = browser.selectedCards()
@@ -313,7 +412,6 @@ def filter_by_card_tag(browser):
     if not tags:
         return
     
-    # Show dialog if multiple tags
     if len(tags) > 1:
         dialog = TagSelectionDialog(tags, browser)
         if dialog.exec():
@@ -351,8 +449,5 @@ def on_context_menu(browser, menu):
 
 browser_will_show_context_menu.append(on_context_menu)
 
-# Get the folder name (package) so Anki knows which add-on this is
 addon_package = __name__.split('.')[0]
-
-# Hook the Config button
 mw.addonManager.setConfigAction(addon_package, config_dialog.show_config_dialog)
