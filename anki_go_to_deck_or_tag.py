@@ -301,10 +301,14 @@ def filter_by_card_tag(browser):
     if not cids:
         return
     
-    # Get the note for the first selected card
-    card = mw.col.get_card(cids[0])
-    note = mw.col.get_note(card.nid)
-    tags = note.tags
+    # Collect tags from ALL selected cards
+    all_tags = set()
+    for cid in cids:
+        card = mw.col.get_card(cid)
+        note = mw.col.get_note(card.nid)
+        all_tags.update(note.tags)
+    
+    tags = list(all_tags)
     
     if not tags:
         return
@@ -317,28 +321,23 @@ def filter_by_card_tag(browser):
             if not selected_tags:
                 return
             
-            # Build filter for multiple tags
             if len(selected_tags) == 1:
                 tag_filter = f'tag:"{selected_tags[0]}"'
                 sidebar_tag = selected_tags[0]
             else:
                 tag_filter = " OR ".join([f'tag:"{tag}"' for tag in selected_tags])
-                sidebar_tag = selected_tags[0]  # Use first tag for sidebar navigation
+                sidebar_tag = selected_tags[0]
         else:
             return
     else:
-        # Single tag - use it directly
         tag_filter = f'tag:"{tags[0]}"'
         sidebar_tag = tags[0]
     
-    # Apply tag filter
     browser.setFilter(tag_filter)
     
-    # Try Legacy method
     is_legacy = expand_and_select_legacy(browser, sidebar_tag)
     
     if not is_legacy:
-        # Check config before running the clipboard hack
         config = get_config()
         if config.get("enable_sidebar_clipboard_hack", False):
             filter_sidebar_modern_keyboard(browser, sidebar_tag)
